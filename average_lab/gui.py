@@ -10,12 +10,12 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, ttk
 
-from .themes import THEMES
-from .plotting import GraphView
+from .themes import THEMES, CURVE_COLORS
+from .plotting import GraphView, Preview, display_formula
 from .keyboard import MathKeyboard
 from .examples import EXAMPLES
 from .expressions import Expression, ExpressionError, parse_bound
-from .numerics import CalculationError, CancelledError, Result, Settings, calculate
+from .numerics import CalculationError, CancelledError, Result, Settings, calculate, validate_interval
 
 BG = "#eef3f8"
 INK = "#152c43"
@@ -57,6 +57,11 @@ class AverageApp:
         self.closed = False
         self.result: Result | None = None
         self.history: list[Result] = []
+        self.comparisons = []
+        self.preview_id = None
+        self.presentation_window = None
+        self.presentation_graph = None
+        self.presentation_entry = None
         self.messages: queue.Queue = queue.Queue()
         self.cancel_event = threading.Event()
         root.title("Cálculo del promedio de una función matemática")
@@ -69,6 +74,7 @@ class AverageApp:
         self.a = tk.StringVar(value="0")
         self.b = tk.StringVar(value="3")
         self.precision = tk.StringVar(value="Alta · 1e-8")
+        self.curve_name = tk.StringVar(value="Morado")
         self.example = tk.StringVar(value=EXAMPLES[0].title)
         self.status = tk.StringVar(value="Escribe una función o carga un ejemplo para comenzar.")
         self.answer = tk.StringVar(value="—")
@@ -142,6 +148,11 @@ class AverageApp:
                 recolor(widget)
         recolor(self.root)
         self.graph.set_theme(self.colors)
+        if self.presentation_graph is not None:
+            self.presentation_graph.set_theme(self.colors)
+        if hasattr(self, "examples_window"):
+            self.examples_window.configure(bg=self.colors["card"])
+        self._sync_curve_colors()
         self.keyboard.set_theme(self.colors)
         self.theme_button.configure(text="☀ Modo claro" if self.theme_name == "dark" else "☾ Modo oscuro")
 
@@ -150,161 +161,140 @@ class AverageApp:
         self.apply_theme()
 
     def _build(self):
-        outer = ttk.Frame(self.root, padding=16)
+        outer = ttk.Frame(self.root, padding=14)
         outer.pack(fill="both", expand=True)
-        outer.columnconfigure(0, weight=1)
-        outer.rowconfigure(2, weight=1)
-        header = ttk.Frame(outer)
-        header.grid(row=0, column=0, sticky="ew")
-        ttk.Label(header, text="Cálculo del promedio de una función matemática", style="Title.TLabel").pack(side="left")
-        self.theme_button = ttk.Button(header, text="☾ Modo oscuro", command=self.toggle_theme)
-        self.theme_button.pack(side="right", padx=(10, 0))
-        ttk.Label(outer, text="Explora una función. Integra. Comprende su valor promedio.",
-                  style="Secondary.TLabel").grid(row=1, column=0, sticky="w", pady=(2, 12))
-        body = ttk.Frame(outer)
-        body.grid(row=2, column=0, sticky="nsew")
-        body.columnconfigure(1, weight=1)
-        body.rowconfigure(0, weight=1)
-        left = ttk.Frame(body, style="Card.TFrame", padding=14, width=325)
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 16))
+        outer.columnconfigure(0,weight=1)
+        outer.rowconfigure(2,weight=1)
+        header=ttk.Frame(outer)
+        header.grid(row=0,column=0,sticky="ew")
+        ttk.Label(header,text="Cálculo del promedio de una función matemática",style="Title.TLabel").pack(side="left")
+        self.theme_button=ttk.Button(header,text="Modo oscuro",command=self.toggle_theme)
+        self.theme_button.pack(side="right")
+        ttk.Label(outer,text="Escribí una función, explorá la gráfica y calculá su promedio.",
+                  style="Secondary.TLabel").grid(row=1,column=0,sticky="w",pady=(2,10))
+        body=ttk.Frame(outer)
+        body.grid(row=2,column=0,sticky="nsew")
+        body.columnconfigure(1,weight=1)
+        body.rowconfigure(0,weight=1)
+        left=ttk.Frame(body,style="Card.TFrame",padding=13,width=330)
+        left.grid(row=0,column=0,sticky="nsew",padx=(0,12))
         left.grid_propagate(False)
-        left.columnconfigure(0, weight=1)
-        row = 0
-        def label(text):
-            nonlocal row
-            ttk.Label(left, text=text, style="Card.TLabel").grid(
-                row=row, column=0, sticky="w", pady=(8 if row else 0, 4))
-            row += 1
-        label("FUNCIÓN")
-        formula_row = ttk.Frame(left, style="Card.TFrame")
-        formula_row.grid(row=row, column=0, sticky="ew")
-        formula_row.columnconfigure(0, weight=1)
-        self.function_entry = ttk.Entry(formula_row, textvariable=self.expression, font=("Consolas", 13), width=16)
-        self.function_entry.grid(row=0, column=0, sticky="ew")
-        self.keyboard_button = ttk.Button(formula_row, text="⌨", width=3,
-                                          command=self.toggle_keyboard, takefocus=False)
-        self.keyboard_button.grid(row=0, column=1, padx=(5, 0))
-        row += 1
-        ttk.Label(left, text="Ejemplo: cos(pi*x), sqrt(x), x^2\nUsa * para multiplicar y punto decimal.",
-                  style="Muted.TLabel", wraplength=280).grid(row=row, column=0, sticky="w", pady=(6, 0))
-        row += 1
-        label("INTERVALO  [a, b]")
-        bounds = ttk.Frame(left, style="Card.TFrame")
-        bounds.grid(row=row, column=0, sticky="ew")
-        bounds.columnconfigure((0, 1), weight=1)
-        self.a_entry = ttk.Entry(bounds, textvariable=self.a, width=10)
-        self.b_entry = ttk.Entry(bounds, textvariable=self.b, width=10)
-        self.a_entry.grid(row=0, column=0, sticky="ew", padx=(0, 8))
-        self.b_entry.grid(row=0, column=1, sticky="ew")
-        row += 1
-        label("PRECISIÓN DEL PROMEDIO")
-        self.precision_box = ttk.Combobox(left, textvariable=self.precision,
-                                          values=list(PRECISIONS), state="readonly", width=25)
-        self.precision_box.grid(row=row, column=0, sticky="ew")
-        row += 1
-        calculation_actions = ttk.Frame(left, style="Card.TFrame")
-        calculation_actions.grid(row=row, column=0, sticky="ew", pady=(12, 3))
-        calculation_actions.columnconfigure(0, weight=1)
-        self.calculate_button = ttk.Button(calculation_actions, text="Calcular promedio", style="Primary.TButton",
-                                           command=self.start)
-        self.calculate_button.grid(row=0, column=0, sticky="ew")
-        self.cancel_button = ttk.Button(calculation_actions, text="Cancelar", command=self.cancel, state="disabled")
-        self.cancel_button.grid(row=0, column=1, padx=(6, 0))
-        row += 1
-        self.progress = ttk.Progressbar(left, mode="indeterminate")
-        self.progress.grid(row=row, column=0, sticky="ew", pady=(4, 0))
+        left.columnconfigure(0,weight=1)
+        formula=ttk.Frame(left,style="Card.TFrame")
+        formula.grid(row=0,column=0,sticky="ew",pady=(0,10))
+        formula.columnconfigure(1,weight=1)
+        self.function_badge=ttk.Label(formula,text="● f(x) =",style="Card.TLabel")
+        self.function_badge.grid(row=0,column=0,padx=(0,6))
+        self.function_entry=ttk.Entry(formula,textvariable=self.expression,font=("Consolas",12),width=12)
+        self.function_entry.grid(row=0,column=1,sticky="ew")
+        self.keyboard_button=ttk.Button(formula,text="⌨",width=2,command=self.toggle_keyboard,takefocus=False)
+        self.keyboard_button.grid(row=0,column=2,padx=(4,0))
+        self.help_button=ttk.Button(formula,text="?",width=2,command=self.show_examples,takefocus=False)
+        self.help_button.grid(row=0,column=3,padx=(3,0))
+        ttk.Label(left,text="INTERVALO  [a, b]",style="Muted.TLabel").grid(row=1,column=0,sticky="w")
+        bounds=ttk.Frame(left,style="Card.TFrame")
+        bounds.grid(row=2,column=0,sticky="ew",pady=(5,10))
+        bounds.columnconfigure((0,1),weight=1)
+        self.a_entry=ttk.Entry(bounds,textvariable=self.a,width=9)
+        self.b_entry=ttk.Entry(bounds,textvariable=self.b,width=9)
+        self.a_entry.grid(row=0,column=0,sticky="ew",padx=(0,6))
+        self.b_entry.grid(row=0,column=1,sticky="ew")
+        ttk.Label(left,text="PRECISIÓN",style="Muted.TLabel").grid(row=3,column=0,sticky="w")
+        self.precision_box=ttk.Combobox(left,textvariable=self.precision,values=list(PRECISIONS),state="readonly",width=24)
+        self.precision_box.grid(row=4,column=0,sticky="ew",pady=(5,10))
+        actions=ttk.Frame(left,style="Card.TFrame")
+        actions.grid(row=5,column=0,sticky="ew")
+        actions.columnconfigure(0,weight=1)
+        self.calculate_button=ttk.Button(actions,text="Calcular promedio",style="Primary.TButton",command=self.start)
+        self.calculate_button.grid(row=0,column=0,sticky="ew")
+        self.cancel_button=ttk.Button(actions,text="Cancelar",command=self.cancel,state="disabled")
+        self.cancel_button.grid(row=0,column=1,padx=(5,0))
+        self.progress=ttk.Progressbar(left,mode="indeterminate")
+        self.progress.grid(row=6,column=0,sticky="ew",pady=5)
         self.progress.grid_remove()
-        row += 1
-        label("EJEMPLOS PARA ESTUDIAR")
-        self.example_box = ttk.Combobox(left, textvariable=self.example, state="readonly",
-                                        values=[example.title for example in EXAMPLES], width=25)
-        self.example_box.grid(row=row, column=0, sticky="ew")
-        row += 1
-        self.load_button = ttk.Button(left, text="Cargar ejemplo", command=self.load_example)
-        self.load_button.grid(row=row, column=0, sticky="ew", pady=(7, 0))
-        row += 1
-        self.example_label = ttk.Label(left, text=EXAMPLES[0].explanation, wraplength=280,
-                                       style="Muted.TLabel", justify="left")
-        self.example_label.grid(row=row, column=0, sticky="nw", pady=(7, 0))
-        row += 1
-        ttk.Label(left, text="Ángulos en radianes · a < b\nFunciones reales e integrables.",
-                  style="Muted.TLabel", wraplength=280).grid(row=row, column=0, sticky="sw", pady=(8, 0))
-        left.rowconfigure(row, weight=1)
-        right = ttk.Frame(body)
-        right.grid(row=0, column=1, sticky="nsew")
-        right.columnconfigure(0, weight=1)
-        right.rowconfigure(1, weight=1)
-        result_card = ttk.Frame(right, style="Card.TFrame", padding=(18, 8))
-        result_card.grid(row=0, column=0, sticky="ew", pady=(0, 14))
-        ttk.Label(result_card, text="VALOR PROMEDIO", style="Muted.TLabel").pack(anchor="w")
-        ttk.Label(result_card, textvariable=self.answer, style="Answer.TLabel").pack(anchor="w")
-        ttk.Label(result_card, textvariable=self.integral_text, style="Card.TLabel").pack(anchor="w")
-        ttk.Label(result_card, textvariable=self.error_text, style="Muted.TLabel").pack(anchor="w", pady=(3, 0))
-        ttk.Label(result_card, textvariable=self.metrics, style="Muted.TLabel", wraplength=650).pack(anchor="w")
-        self.tabs = ttk.Notebook(right)
-        self.tabs.grid(row=1, column=0, sticky="nsew")
-        plot_frame = ttk.Frame(self.tabs, style="Card.TFrame")
-        self.tabs.add(plot_frame, text="  Gráfica  ")
-        self.graph = GraphView(plot_frame, self.colors)
-        self.graph.pack(fill="both", expand=True)
-        self.canvas = self.graph.canvas
-        self.steps = tk.Text(self.tabs, wrap="word", bg="white", fg=INK, relief="flat",
-                             padx=18, pady=15, font=("Segoe UI", 11), state="disabled", width=30)
-        self.tabs.add(self.steps, text="  Procedimiento  ")
-        syntax = tk.Text(self.tabs, wrap="word", bg="white", fg=INK, relief="flat",
-                         padx=18, pady=15, font=("Segoe UI", 11), width=30)
-        syntax.insert("1.0",
-            "ESCRIBIR UNA FUNCIÓN\n\nUsa x como variable. La multiplicación se escribe con *: "
-            "2*x, no 2x. Las potencias usan ^ o **. Escribe paréntesis en las funciones: cos(pi*x).\n\n"
-            "Operaciones: +  −  *  /  ^\nConstantes: pi, PI, π, e, tau, τ\n\n"
-            "Funciones de un argumento:\nsin, sen, cos, tan, asin, acos, atan,\n"
-            "sqrt, exp, log, ln, log10, abs,\nsinh, cosh, tanh.\n\n"
-            "log y ln representan el logaritmo natural. Los ángulos y las funciones inversas "
-            "se interpretan en radianes. Usa punto decimal: 0.5.\n\n"
-            "Los límites también admiten expresiones: -pi, pi/2, sqrt(2). Deben ser finitos y a < b.\n\n"
-            "CONDICIONES Y ERRORES\n\nNo se admiten complejos, expresiones por tramos, listas, "
-            "comparaciones, importaciones ni instrucciones Python. El exponente evaluado se limita "
-            "a [-100,100]. La expresión admite 300 caracteres y tiene límites de complejidad.\n\n"
-            "sqrt(x) necesita x ≥ 0; ln(x) necesita x > 0. Una división entre cero o un desbordamiento "
-            "detiene el cálculo. Alcanzar el presupuesto o no resolver la precisión produce un mensaje.\n\n"
-            "La precisión compara el error estimado con max(tol_abs, tol_rel*|promedio|). "
-            "No se garantiza un número fijo de decimales ni se detectan todas las discontinuidades.\n\n"
-            "JSON conserva el resultado y sus condiciones. CSV contiene 501 muestras para visualizar, "
-            "que no son la malla adaptativa usada al integrar. El historial dura esta sesión.")
-        syntax.configure(state="disabled")
-        self.tabs.add(syntax, text="  Ayuda  ")
-        history_frame = ttk.Frame(self.tabs, padding=10)
-        self.tabs.add(history_frame, text="  Historial  ")
-        self.history_tree = ttk.Treeview(history_frame, columns=("function", "bounds", "mean"),
-                                         show="headings", selectmode="browse", height=6)
-        for col, title, width in (("function", "Función", 200), ("bounds", "[a, b]", 130),
-                                  ("mean", "Promedio", 160)):
-            self.history_tree.heading(col, text=title)
-            self.history_tree.column(col, width=width, minwidth=80)
-        self.history_tree.pack(fill="both", expand=True)
-        self.history_tree.bind("<Double-1>", self.restore_history)
-        ttk.Button(history_frame, text="Recuperar selección", command=self.restore_history).pack(anchor="w", pady=8)
-        ttk.Label(history_frame, text="Hasta 30 cálculos de esta sesión. Se pueden exportar los resultados.",
-                  wraplength=600).pack(anchor="w")
-        actions = ttk.Frame(right)
-        actions.grid(row=2, column=0, sticky="ew", pady=(10, 0))
-        self.json_button = ttk.Button(actions, text="Guardar resultado JSON", command=lambda: self.save("json"), state="disabled")
-        self.csv_button = ttk.Button(actions, text="Guardar muestras CSV", command=lambda: self.save("csv"), state="disabled")
-        self.json_button.pack(side="left", padx=(0, 8))
-        self.csv_button.pack(side="left", padx=(0, 8))
-        self.image_button = ttk.Button(actions, text="Guardar gráfica PNG", command=self.save_image, state="disabled")
-        self.image_button.pack(side="left")
-        ttk.Label(outer, textvariable=self.status, style="Secondary.TLabel", wraplength=1080,
-                  justify="left").grid(row=3, column=0, sticky="ew", pady=(8, 0))
-        self.inputs = (self.function_entry, self.a_entry, self.b_entry,
-                       self.precision_box, self.example_box, self.load_button, self.keyboard_button)
-        for entry in (self.function_entry, self.a_entry, self.b_entry):
+        self.result_card=ttk.Frame(left,style="Card.TFrame",padding=(0,15))
+        self.result_card.grid(row=7,column=0,sticky="ew")
+        ttk.Label(self.result_card,text="VALOR PROMEDIO",style="Muted.TLabel").pack(anchor="w")
+        ttk.Label(self.result_card,textvariable=self.answer,style="Answer.TLabel").pack(anchor="w")
+        ttk.Label(self.result_card,textvariable=self.integral_text,style="Card.TLabel",wraplength=292).pack(anchor="w")
+        ttk.Label(self.result_card,textvariable=self.error_text,style="Muted.TLabel",wraplength=292).pack(anchor="w",pady=(4,0))
+        ttk.Label(self.result_card,textvariable=self.metrics,style="Muted.TLabel",wraplength=292).pack(anchor="w")
+        compare=ttk.Frame(left,style="Card.TFrame")
+        compare.grid(row=8,column=0,sticky="ew")
+        self.pin_button=ttk.Button(compare,text="+ Fijar curva",command=self.pin_curve)
+        self.pin_button.pack(side="left")
+        self.color_box=ttk.Combobox(compare,textvariable=self.curve_name,values=list(CURVE_COLORS),state="readonly",width=9)
+        self.color_box.pack(side="right")
+        self.color_box.bind("<<ComboboxSelected>>",lambda e:self._sync_curve_colors())
+        self.comparison_list=ttk.Frame(left,style="Card.TFrame")
+        self.comparison_list.grid(row=9,column=0,sticky="ew",pady=(5,0))
+        right=ttk.Frame(body)
+        right.grid(row=0,column=1,sticky="nsew")
+        right.columnconfigure(0,weight=1)
+        right.rowconfigure(0,weight=1)
+        self.tabs=ttk.Notebook(right)
+        self.tabs.grid(row=0,column=0,sticky="nsew")
+        plot_frame=ttk.Frame(self.tabs,style="Card.TFrame")
+        self.tabs.add(plot_frame,text=" Gráfica ")
+        self.graph=GraphView(plot_frame,self.colors)
+        self.graph.pack(fill="both",expand=True)
+        self.graph.fullscreen_callback=self.toggle_fullscreen
+        self.canvas=self.graph.canvas
+        self.steps=tk.Text(self.tabs,wrap="word",relief="flat",padx=18,pady=15,font=("Segoe UI",11),state="disabled",width=30)
+        self.tabs.add(self.steps,text=" Procedimiento ")
+        self.syntax=tk.Text(self.tabs,wrap="word",relief="flat",padx=18,pady=15,font=("Segoe UI",11),width=30)
+        self.syntax.insert("1.0","ESCRIBIR UNA FUNCIÓN\n\nUsá x como variable; también podés escribir y= o f(x)=. "
+            "La multiplicación se indica con * y las potencias con ^ o **. Los ángulos están en radianes.\n\n"
+            "Funciones: sin, sen, cos, tan, asin, acos, atan, sqrt, exp, ln, log, log10, abs, sinh, cosh, tanh.\n"
+            "Constantes: pi, PI, π, e, tau, τ. Límites: -pi, pi/2, sqrt(2). Se requiere a<b.\n\n"
+            "El botón ? abre ejemplos: al seleccionar uno se carga y calcula. El teclado ⌨ inserta plantillas.\n\n"
+            "Fijar curva conserva una referencia para compararla con la siguiente función. "
+            "El promedio corresponde únicamente a la función activa f(x). Hay hasta tres referencias.\n\n"
+            "Pantalla completa o F11 abre la vista de presentación. Salí con Escape o con el botón Salir.\n\n"
+            "No se admiten complejos, expresiones por tramos ni código Python. Se verifica dominio y finitud. "
+            "La precisión compara el error estimado con max(tol_abs,tol_rel*|promedio|); no garantiza decimales. "
+            "Una vista previa no demuestra integrabilidad y no tiene promedio hasta calcular.\n\n"
+            "JSON conserva el resultado; CSV guarda 501 muestras de visualización. PNG guarda la vista actual.")
+        self.syntax.configure(state="disabled")
+        self.tabs.add(self.syntax,text=" Ayuda ")
+        history=ttk.Frame(self.tabs,padding=10)
+        self.tabs.add(history,text=" Historial ")
+        self.history_tree=ttk.Treeview(history,columns=("function","bounds","mean"),show="headings",height=6)
+        for col,title,width in (("function","Función",200),("bounds","[a,b]",130),("mean","Promedio",160)):
+            self.history_tree.heading(col,text=title)
+            self.history_tree.column(col,width=width,minwidth=80)
+        self.history_tree.pack(fill="both",expand=True)
+        self.history_tree.bind("<Double-1>",self.restore_history)
+        ttk.Button(history,text="Recuperar selección",command=self.restore_history).pack(anchor="w",pady=8)
+        exports=ttk.Frame(right)
+        exports.grid(row=1,column=0,sticky="ew",pady=(8,0))
+        self.json_button=ttk.Button(exports,text="Guardar JSON",command=lambda:self.save("json"),state="disabled")
+        self.csv_button=ttk.Button(exports,text="Guardar CSV",command=lambda:self.save("csv"),state="disabled")
+        self.image_button=ttk.Button(exports,text="Guardar gráfica PNG",command=self.save_image,state="disabled")
+        for button in (self.json_button,self.csv_button,self.image_button):
+            button.pack(side="left",padx=(0,7))
+        ttk.Label(outer,textvariable=self.status,style="Secondary.TLabel",wraplength=1080).grid(row=3,column=0,sticky="ew",pady=(8,0))
+        self.examples_window=tk.Toplevel(self.root)
+        self.examples_window.withdraw()
+        self.examples_window.title("Ejemplos y ayuda")
+        self.examples_window.transient(self.root)
+        self.examples_window.protocol("WM_DELETE_WINDOW",self.examples_window.withdraw)
+        example_panel=ttk.Frame(self.examples_window,style="Card.TFrame",padding=18)
+        example_panel.pack(fill="both",expand=True)
+        ttk.Label(example_panel,text="Elegí un ejemplo",style="Card.TLabel").pack(anchor="w")
+        self.example_box=ttk.Combobox(example_panel,textvariable=self.example,values=[e.title for e in EXAMPLES],state="readonly",width=40)
+        self.example_box.pack(fill="x",pady=10)
+        self.example_box.bind("<<ComboboxSelected>>",self._select_example)
+        self.example_label=ttk.Label(example_panel,text=EXAMPLES[0].explanation,style="Muted.TLabel",wraplength=400)
+        self.example_label.pack(anchor="w",pady=(0,10))
+        ttk.Label(example_panel,text="Se carga y calcula al seleccionar. El teclado y la gráfica siguen disponibles.",style="Muted.TLabel",wraplength=400).pack(anchor="w")
+        self.inputs=(self.function_entry,self.a_entry,self.b_entry,self.precision_box,self.keyboard_button,
+                     self.help_button,self.example_box,self.pin_button)
+        for entry in (self.function_entry,self.a_entry,self.b_entry):
             self.keyboard.attach(entry)
-        self.root.bind("<Return>", lambda event: self.start() if not self.busy else None)
-        self._set_steps("El promedio conserva el signo de la integral.\n\n"
-                        "f_prom = (1 / (b − a)) · ∫[a,b] f(x) dx\n\n"
-                        "Carga un ejemplo o escribe una función. La pestaña Procedimiento "
-                        "mostrará cómo interpretar el resultado.")
+        self.root.bind("<Return>",lambda e:self.start() if not self.busy else None)
+        self.root.bind("<F11>",lambda e:self.toggle_fullscreen())
+        self._set_steps("El promedio conserva el signo de la integral.\n\nf_prom = ∫[a,b]f(x)dx / (b-a).")
 
     def _set_steps(self, text):
         self.steps.configure(state="normal")
@@ -325,6 +315,7 @@ class AverageApp:
         self.status.set("Entradas modificadas. Calcula para obtener un resultado actualizado.")
         self._set_steps("Se modificaron los datos. Vuelve a calcular para actualizar el procedimiento.")
         self.draw()
+        self._schedule_preview()
 
     def load_example(self):
         if self.busy:
@@ -338,6 +329,8 @@ class AverageApp:
 
     def _busy(self, value):
         self.busy = value
+        if self.presentation_entry is not None:
+            self.presentation_entry.configure(state="disabled" if value else "normal")
         for widget in self.inputs:
             widget.configure(state="disabled" if value else (
                 "readonly" if isinstance(widget, ttk.Combobox) else "normal"))
@@ -355,8 +348,9 @@ class AverageApp:
             return
         self.keyboard.hide()
         self._invalidate()
+        self._cancel_preview()
         try:
-            function = Expression.parse(self.expression.get())
+            function = Expression.parse(self._function_source())
             a, b = parse_bound(self.a.get()), parse_bound(self.b.get())
             tolerance = PRECISIONS[self.precision.get()]
             settings = Settings(abs_tol=tolerance, rel_tol=tolerance)
@@ -403,6 +397,7 @@ class AverageApp:
         self.status.set("Cancelando…")
 
     def show_result(self, result: Result, *, remember=True):
+        self._cancel_preview()
         self.result = result
         self.answer.set(number(result.average))
         self.integral_text.set("Integral con signo: " + number(result.integral))
@@ -460,6 +455,139 @@ class AverageApp:
 
     def draw(self):
         self.graph.set_result(self.result)
+        if self.presentation_graph is not None:
+            self.presentation_graph.set_result(self.result)
+
+    def _function_source(self):
+        text=self.expression.get().strip()
+        for prefix in ("f(x)","y"):
+            if text.startswith(prefix) and text[len(prefix):].lstrip().startswith("="):
+                return text.split("=",1)[1].strip()
+        return text
+
+    def _cancel_preview(self):
+        if self.preview_id is not None:
+            self.root.after_cancel(self.preview_id)
+            self.preview_id=None
+
+    def _schedule_preview(self):
+        self._cancel_preview()
+        if not self.closed:
+            self.preview_id=self.root.after(220,self.preview)
+
+    def preview(self):
+        self._cancel_preview()
+        if self.busy or self.result is not None:
+            return
+        try:
+            function=Expression.parse(self._function_source())
+            a,b,_=validate_interval(parse_bound(self.a.get()),parse_bound(self.b.get()))
+            data=Preview(function.source,a,b)
+            self.graph.set_result(data)
+            if self.presentation_graph is not None:
+                self.presentation_graph.set_result(data)
+            self.status.set("Vista previa de f(x). Calculá para obtener el promedio y su control de error.")
+        except (ExpressionError,CalculationError):
+            self.status.set("Completá la función y los límites para actualizar la vista previa.")
+
+    def show_examples(self):
+        self.keyboard.hide()
+        self.examples_window.deiconify()
+        self.examples_window.lift()
+
+    def _select_example(self,event=None):
+        self.load_example()
+        self.examples_window.withdraw()
+        self.start()
+
+    def _color(self,name):
+        return CURVE_COLORS[name][self.theme_name=="dark"]
+
+    def _sync_curve_colors(self):
+        self.function_badge.configure(foreground=self._color(self.curve_name.get()))
+        for graph in (self.graph,self.presentation_graph):
+            if graph is not None:
+                graph.curve_color=self._color(self.curve_name.get())
+                graph.set_comparisons([(c["source"],self._color(c["color"])) for c in self.comparisons])
+        for widget in self.comparison_list.winfo_children():
+            widget.destroy()
+        for i,curve in enumerate(self.comparisons):
+            row=ttk.Frame(self.comparison_list,style="Card.TFrame")
+            row.pack(fill="x",pady=2)
+            ttk.Label(row,text=f"g{i+1}(x) = {display_formula(curve['source'])[:25]}",style="Card.TLabel",
+                      foreground=self._color(curve["color"])).pack(side="left")
+            ttk.Button(row,text="×",width=2,command=lambda index=i:self.remove_curve(index)).pack(side="right")
+
+    def pin_curve(self):
+        if self.busy:
+            return
+        try:
+            source=Expression.parse(self._function_source()).source
+        except ExpressionError as exc:
+            self.status.set(str(exc))
+            return
+        if len(self.comparisons)>=3:
+            self.status.set("Ya hay tres referencias. Quitá una con × para fijar otra.")
+            return
+        if not any(c["source"]==source for c in self.comparisons):
+            self.comparisons.append({"source":source,"color":self.curve_name.get()})
+            names=list(CURVE_COLORS)
+            self.curve_name.set(names[(names.index(self.curve_name.get())+1)%len(names)])
+            self._sync_curve_colors()
+            self.status.set("Curva fijada. Escribí otra función para compararlas en la misma gráfica.")
+
+    def remove_curve(self,index):
+        del self.comparisons[index]
+        self._sync_curve_colors()
+
+    def toggle_fullscreen(self):
+        if self.presentation_window is not None:
+            self.leave_fullscreen()
+            return
+        self.keyboard.hide()
+        window=self.presentation_window=tk.Toplevel(self.root)
+        window.title("Gráfica - presentación")
+        window.configure(bg=self.colors["bg"])
+        window.attributes("-fullscreen",True)
+        window.protocol("WM_DELETE_WINDOW",self.leave_fullscreen)
+        bar=ttk.Frame(window,padding=10)
+        bar.pack(fill="x")
+        ttk.Label(bar,text="f(x) =").pack(side="left",padx=(0,8))
+        entry=self.presentation_entry=ttk.Entry(bar,textvariable=self.expression,font=("Consolas",14))
+        entry.configure(state="disabled" if self.busy else "normal")
+        entry.pack(side="left",fill="x",expand=True)
+        self.keyboard.attach(entry)
+        entry.bind("<Escape>",lambda e:(
+            self.keyboard.hide() if self.keyboard.visible else self.leave_fullscreen(), "break")[1])
+        ttk.Button(bar,text="⌨",width=3,command=lambda:self.keyboard.show(entry)).pack(side="left",padx=5)
+        ttk.Button(bar,text="?",width=3,command=self.show_examples).pack(side="left")
+        ttk.Button(bar,text="Calcular",command=self.start).pack(side="left",padx=5)
+        ttk.Button(bar,text="Guardar PNG",command=self.save_image).pack(side="left")
+        ttk.Button(bar,text="Salir (Esc)",command=self.leave_fullscreen).pack(side="left",padx=(8,0))
+        graph=self.presentation_graph=GraphView(window,self.colors)
+        graph.pack(fill="both",expand=True)
+        graph.fullscreen_callback=self.leave_fullscreen
+        graph.fullscreen_button.configure(text="Salir de pantalla completa")
+        graph.set_result(self.graph.result)
+        self._sync_curve_colors()
+        graph.view=self.graph.view
+        graph.draw()
+        window.bind("<Escape>",lambda e:self.leave_fullscreen())
+        window.bind("<F11>",lambda e:self.leave_fullscreen())
+        window.bind("<Return>",lambda e:self.start() if not self.busy else None)
+
+    def leave_fullscreen(self):
+        if self.presentation_window is not None:
+            self.keyboard.hide()
+            self.keyboard.target=self.function_entry
+            if self.graph.result is self.presentation_graph.result:
+                self.graph.view=self.presentation_graph.view
+            self.presentation_graph=None
+            self.presentation_entry=None
+            window=self.presentation_window
+            self.presentation_window=None
+            window.destroy()
+            self.graph.draw()
 
     def toggle_keyboard(self):
         if self.keyboard.visible:
@@ -476,7 +604,7 @@ class AverageApp:
         if not path:
             return
         try:
-            self.graph.save_png(path)
+            (self.presentation_graph or self.graph).save_png(path)
             self.status.set("Gráfica guardada con el tema y la vista actuales: " + path)
         except (OSError, ValueError, ImportError) as exc:
             self.status.set("No se pudo guardar la imagen: " + str(exc))
@@ -496,6 +624,8 @@ class AverageApp:
 
     def close(self):
         self.closed = True
+        self._cancel_preview()
+        self.leave_fullscreen()
         self.root.update_idletasks()
         self.keyboard.close()
         self.cancel_event.set()

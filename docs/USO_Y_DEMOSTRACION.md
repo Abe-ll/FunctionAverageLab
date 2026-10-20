@@ -92,3 +92,13 @@ pendientes. Un EXE local o un push no demuestra envío a Canvas.
 | tools/build_windows.py | Construir y comprobar el EXE |
 
 La configuración de VS Code se hará por separado con el equipo local.
+
+## Presentación y comparación de funciones
+
+La función se escribe a la izquierda, junto a la gráfica; también se acepta y= o f(x)= al principio. La vista previa aparece al terminar de escribir. Calcular promedio ejecuta y verifica el cálculo; no hay promedio numérico durante una vista previa. El bloque del promedio está debajo de los controles.
+
+El botón ? junto al teclado abre los ejemplos. Al seleccionar uno se carga y calcula automáticamente, sin un botón adicional de carga. Fijar curva conserva la función y cambia el color de la siguiente. Se admiten tres referencias además de f(x); × quita una referencia. El promedio siempre pertenece a la función activa f(x).
+
+Pantalla completa o F11 abre la vista de presentación, con entrada de función, teclado, ejemplos y PNG. Escape o Salir vuelve conservando la vista. La interfaz usa superficies negras o blancas y acentos morados; cada curva tiene su color.
+
+Para mover con fluidez reutilizo expresiones y muestras, agrupo segmentos en trayectorias y dejo un solo fotograma pendiente para eventos rápidos. Al soltar el ratón o acercar más actualizo las muestras donde hace falta. PNG incluye las referencias y el promedio de f(x), conservando sus colores.

@@ -1,18 +1,21 @@
-"""Acá reúno los colores para cambiar toda la ventana sin tocar el cálculo."""
-
+"""Acá uso neutros y morado para separar la interfaz de los colores de las curvas."""
 THEMES = {
     "light": {
-        "bg": "#eef3f8", "card": "#ffffff", "ink": "#152c43", "muted": "#51677c",
-        "input": "#f4f7fb", "button": "#e1eaf3", "hover": "#cbdce9",
-        "accent": "#087f8c", "selected": "#176d85", "disabled": "#718296",
-        "grid": "#e2eaf2", "axis": "#8da3b7", "curve": "#12678d", "mean": "#af510b",
-        "positive": "#d8eef3", "negative": "#ffe7d5", "primary": "#087f8c",
+        "bg":"#f3f2f6", "card":"#ffffff", "ink":"#211d29", "muted":"#686171",
+        "input":"#f7f5fa", "button":"#ece7f3", "hover":"#ded4ee",
+        "accent":"#7542d8", "selected":"#7542d8", "disabled":"#8b8297",
+        "grid":"#e9e5ed", "axis":"#aaa0b4", "curve":"#7542d8", "mean":"#ba5c16",
+        "positive":"#ece3fa", "negative":"#f8e6dd", "primary":"#7542d8",
     },
     "dark": {
-        "bg": "#0d1726", "card": "#152338", "ink": "#edf3fb", "muted": "#afc1d6",
-        "input": "#20324b", "button": "#243a54", "hover": "#34516f",
-        "accent": "#53d1db", "selected": "#256d8b", "disabled": "#8093a9",
-        "grid": "#2a3c54", "axis": "#8098b4", "curve": "#78d0ff", "mean": "#ffb774",
-        "positive": "#1c4052", "negative": "#50352f", "primary": "#087d8c",
+        "bg":"#111014", "card":"#1c1a22", "ink":"#f6f3fa", "muted":"#bab1c6",
+        "input":"#28242f", "button":"#302b38", "hover":"#43374f",
+        "accent":"#ba94ff", "selected":"#7953b7", "disabled":"#847b90",
+        "grid":"#35303e", "axis":"#71657f", "curve":"#ba94ff", "mean":"#ffbd79",
+        "positive":"#352747", "negative":"#472c27", "primary":"#7945cd",
     },
+}
+CURVE_COLORS = {
+    "Morado": ("#7542d8","#ba94ff"), "Verde": ("#168355","#60d3a4"),
+    "Naranja": ("#c36a15","#ffbd79"), "Rosa": ("#c93d7e","#ff85ba"),
 }

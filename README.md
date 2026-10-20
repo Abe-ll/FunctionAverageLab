@@ -19,9 +19,18 @@ ocho ejemplos, gráfica, procedimiento e historial de la sesión.
 Los resultados se pueden exportar como JSON, las muestras como CSV y la gráfica como PNG.
 El cálculo se puede cancelar; al modificar los datos se invalida el resultado anterior.
 
+La entrada f(x) se actualiza como vista previa al escribir. **Calcular promedio**
+ejecuta el cálculo numérico; una vista previa no muestra un promedio inventado.
+El botón **?**, a la derecha de ⌨, abre los ejemplos: seleccionar uno lo carga y calcula.
+El valor promedio aparece debajo de los controles, dejando más espacio a la gráfica.
+**Fijar curva** conserva hasta tres referencias para compararlas con la función
+activa; su color se puede elegir. El promedio siempre corresponde a f(x).
+
 El botón de arriba alterna modo claro y oscuro. La gráfica admite rueda para
 zoom sobre el cursor, arrastre, barras de desplazamiento, deslizador de zoom,
 cuadrícula y ejes conmutables y **Ajustar** para volver a la vista inicial.
+**Pantalla completa** o F11 abre la presentación con entrada de función, teclado,
+ejemplos y exportación. Escape o Salir vuelve a la ventana y conserva la vista.
 El PNG guarda la vista y el tema actuales, con función, intervalo, promedio
 y error estimado. Se genera a partir de los datos, sin capturar el escritorio.
 
@@ -29,6 +38,10 @@ Al tocar la función o un límite se despliega el teclado matemático. El botón
 ⌨ lo abre o cierra; **Listo** y Escape lo ocultan. Los botones √, x², xʸ,
 fracción, π y funciones insertan sintaxis válida en el cursor. Seleccioná una
 expresión para envolverla en una función. Se puede seguir usando el teclado físico.
+
+La interfaz usa negros, morados y blancos con colores independientes para cada
+curva. Al mover la vista reutilizo muestras, agrupo el trazado y junto los eventos
+rápidos del ratón. Una mejora medida de redibujado no garantiza FPS del monitor.
 
 Consola educativa y comprobaciones:
 
