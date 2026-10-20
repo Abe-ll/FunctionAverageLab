@@ -6,13 +6,24 @@ Evolución del prototipo de Rodrigo Polanco: intérprete AST y Simpson 1/3,
 ahora separados de la consola, con validación y control independiente.
 Ver [autoría](AUTHORS.md) y la documentación original DOCUMENTACION_TECNICA.md.
 
-## Ejecutar por consola
+## Ejecutar
 
 Python 3.12 o posterior, sin paquetes externos para el cálculo:
+
+    python main.py
+
+Se abre una ventana con función editable, límites, tres niveles de precisión,
+ocho ejemplos, gráfica, procedimiento e historial de la sesión.
+Los resultados se pueden exportar como JSON y las muestras como CSV.
+El cálculo se puede cancelar; al modificar los datos se invalida el resultado anterior.
+
+Consola educativa y comprobaciones:
 
     python main.py --cli
 
     python main.py --self-test
+
+    python main.py --smoke-test
 
 ## Pruebas
 
