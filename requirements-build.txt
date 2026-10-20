@@ -1,2 +1,2 @@
-# Solo para construir el EXE; la aplicación funciona con la biblioteca estándar.
+# Uso este paquete para construir el EXE; la aplicación usa la biblioteca estándar.
 pyinstaller==6.22.3

@@ -1,11 +1,11 @@
-"""Consola repetible: conserva la opción de uso sin interfaz gráfica."""
+"""Acá dejo la consola para calcular varias funciones sin abrir la ventana."""
 from __future__ import annotations
 import json
 from .expressions import Expression, ExpressionError, parse_bound
 from .numerics import CalculationError, calculate
 
 def run() -> None:
-    print("FUNCTION AVERAGE LAB | Valor promedio")
+    print("CÁLCULO DEL PROMEDIO DE UNA FUNCIÓN MATEMÁTICA")
     print("Usa x, *, ^, sin/sen, cos, sqrt, exp, log/ln y pi. Ángulos en radianes.")
     while True:
         try:

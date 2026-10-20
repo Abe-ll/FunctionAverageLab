@@ -1,7 +1,8 @@
-"""Entrada de Function Average Lab. Prototipo original: Rodrigo Polanco.
+"""Entrada de Cálculo del promedio de una función matemática.
 
-La evolución modular conserva Simpson y el intérprete AST, con asistencia de
-Codex documentada en AUTHORS.md. Importar este archivo no solicita entradas.
+Acá parto del main original del Polanco. Conservo Simpson y el intérprete AST,
+pero separo el cálculo, la consola y la ventana para poder revisar cada parte.
+Al importar este archivo no pido datos ni abro la aplicación.
 """
 from __future__ import annotations
 import argparse
@@ -25,7 +26,7 @@ def main() -> None:
         data = json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False)
         if args.report:
             args.report.write_text(data + "\n", encoding="utf-8")
-        # El ejecutable de ventana no tiene salida estándar asociada.
+        # Reviso si hay consola porque el EXE de ventana no tiene salida estándar.
         import sys
         if sys.stdout is not None:
             print(data)

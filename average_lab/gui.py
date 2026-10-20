@@ -1,4 +1,4 @@
-"""Interfaz de escritorio. Tk solo se modifica desde el hilo principal."""
+"""Acá manejo la ventana; solo actualizo Tk desde el hilo principal."""
 from __future__ import annotations
 
 import csv
@@ -56,8 +56,8 @@ class AverageApp:
         self.history: list[Result] = []
         self.messages: queue.Queue = queue.Queue()
         self.cancel_event = threading.Event()
-        root.title("Function Average Lab · Valor promedio")
-        # Reservar espacio para el título y la barra de tareas en pantallas de 768 px.
+        root.title("Cálculo del promedio de una función matemática")
+        # Reservo espacio para el título y la barra de tareas en pantallas de 768 px.
         height = min(790, max(640, root.winfo_screenheight() - 110))
         root.geometry(f"1140x{height}+20+10")
         root.minsize(980, 640)
@@ -102,7 +102,7 @@ class AverageApp:
         outer.pack(fill="both", expand=True)
         outer.columnconfigure(0, weight=1)
         outer.rowconfigure(2, weight=1)
-        ttk.Label(outer, text="Function Average Lab", style="Title.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(outer, text="Cálculo del promedio de una función matemática", style="Title.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Label(outer, text="Explora una función. Integra. Comprende su valor promedio.",
                   foreground=MUTED).grid(row=1, column=0, sticky="w", pady=(2, 12))
         body = ttk.Frame(outer)
@@ -192,6 +192,28 @@ class AverageApp:
         self.steps = tk.Text(self.tabs, wrap="word", bg="white", fg=INK, relief="flat",
                              padx=18, pady=15, font=("Segoe UI", 11), state="disabled", width=30)
         self.tabs.add(self.steps, text="  Procedimiento  ")
+        syntax = tk.Text(self.tabs, wrap="word", bg="white", fg=INK, relief="flat",
+                         padx=18, pady=15, font=("Segoe UI", 11), width=30)
+        syntax.insert("1.0",
+            "ESCRIBIR UNA FUNCIÓN\n\nUsa x como variable. La multiplicación se escribe con *: "
+            "2*x, no 2x. Las potencias usan ^ o **. Escribe paréntesis en las funciones: cos(pi*x).\n\n"
+            "Operaciones: +  −  *  /  ^\nConstantes: pi, PI, π, e, tau, τ\n\n"
+            "Funciones de un argumento:\nsin, sen, cos, tan, asin, acos, atan,\n"
+            "sqrt, exp, log, ln, log10, abs,\nsinh, cosh, tanh.\n\n"
+            "log y ln representan el logaritmo natural. Los ángulos y las funciones inversas "
+            "se interpretan en radianes. Usa punto decimal: 0.5.\n\n"
+            "Los límites también admiten expresiones: -pi, pi/2, sqrt(2). Deben ser finitos y a < b.\n\n"
+            "CONDICIONES Y ERRORES\n\nNo se admiten complejos, expresiones por tramos, listas, "
+            "comparaciones, importaciones ni instrucciones Python. El exponente evaluado se limita "
+            "a [-100,100]. La expresión admite 300 caracteres y tiene límites de complejidad.\n\n"
+            "sqrt(x) necesita x ≥ 0; ln(x) necesita x > 0. Una división entre cero o un desbordamiento "
+            "detiene el cálculo. Alcanzar el presupuesto o no resolver la precisión produce un mensaje.\n\n"
+            "La precisión compara el error estimado con max(tol_abs, tol_rel*|promedio|). "
+            "No se garantiza un número fijo de decimales ni se detectan todas las discontinuidades.\n\n"
+            "JSON conserva el resultado y sus condiciones. CSV contiene 501 muestras para visualizar, "
+            "que no son la malla adaptativa usada al integrar. El historial dura esta sesión.")
+        syntax.configure(state="disabled")
+        self.tabs.add(syntax, text="  Ayuda  ")
         history_frame = ttk.Frame(self.tabs, padding=10)
         self.tabs.add(history_frame, text="  Historial  ")
         self.history_tree = ttk.Treeview(history_frame, columns=("function", "bounds", "mean"),
@@ -228,7 +250,7 @@ class AverageApp:
         self.steps.configure(state="disabled")
 
     def _invalidate(self, *_):
-        # Un resultado anterior no debe parecer correspondiente a una fórmula recién editada.
+        # Quito el resultado anterior para no confundirlo con el de la fórmula recién editada.
         self.result = None
         self.answer.set("—")
         self.integral_text.set("Integral: —")
@@ -298,7 +320,7 @@ class AverageApp:
                 kind, payload, snapshot = self.messages.get_nowait()
                 self._busy(False)
                 current = (self.expression.get(), self.a.get(), self.b.get(), self.precision.get())
-                # El historial puede cambiar las entradas: descartar respuestas de un cálculo anterior.
+                # Descarto respuestas anteriores si encuentro que cambiaron las entradas.
                 if self.cancel_event.is_set():
                     self.status.set("Cálculo cancelado. Puedes modificar los datos e intentar de nuevo.")
                 elif current != snapshot:
@@ -381,7 +403,7 @@ class AverageApp:
         result = self.result
         points = sample_curve(result)
         valid = [y for _, y in points if y is not None] + [0.0, result.average]
-        # Normalizar primero evita que ymax−ymin desborde con valores finitos enormes.
+        # Normalizo primero para que ymax−ymin no desborde con valores finitos enormes.
         scale = max(abs(y) for y in valid) or 1.0
         low, high = min(y / scale for y in valid), max(y / scale for y in valid)
         if low == high:
@@ -444,7 +466,7 @@ def run():
     root.mainloop()
 
 def smoke_test() -> dict:
-    """Verificación breve de los widgets, el motor y la gráfica, también en el EXE."""
+    """Acá compruebo los controles, el cálculo y la gráfica, también dentro del EXE."""
     root = tk.Tk()
     root.withdraw()
     app = AverageApp(root)

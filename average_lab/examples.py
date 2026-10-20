@@ -1,4 +1,4 @@
-"""Casos de estudio con respuestas analíticas que pueden verificarse a mano."""
+"""Acá guardo ejemplos que puedo comparar con un resultado calculado a mano."""
 from dataclasses import dataclass
 
 @dataclass(frozen=True)

@@ -1,4 +1,4 @@
-"""Intérprete matemático restringido: valida el AST completo antes de calcular."""
+"""Acá reviso la fórmula completa antes de evaluarla, sin ejecutar código Python."""
 from __future__ import annotations
 
 import ast

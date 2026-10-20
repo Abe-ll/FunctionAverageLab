@@ -1,8 +1,8 @@
-"""Simpson adaptativo con control independiente y presupuesto de trabajo.
+"""Acá calculo el promedio con Simpson y lo comparo con otra regla.
 
-Se conserva la idea de Simpson 1/3 del prototipo. El cálculo se normaliza
-a t en [0,1]: la integral en t es directamente el promedio buscado.
-La estimación de error es numérica; no demuestra continuidad ni exactitud.
+Conservo Simpson 1/3, sacado de la versión del Polanco. Cambio a t en [0,1]
+para que la integral sea directamente el promedio que busco.
+Estimo el error numérico; con esto no demuestro continuidad ni exactitud.
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ class CancelledError(CalculationError):
 class Settings:
     abs_tol: float = 1e-8
     rel_tol: float = 1e-8
-    max_evaluations: int = 200_000
+    max_evaluations: int = 500_000
     max_depth: int = 32
     time_limit: float = 12.0
 
@@ -67,19 +67,19 @@ def validate_interval(a: float, b: float) -> tuple[float, float, float]:
         raise CalculationError(str(exc)) from exc
     if width <= 0:
         raise CalculationError("El límite superior b debe ser mayor que a.")
-    # No usar un paso que se redondea al extremo y aparenta convergencia.
+    # Rechazo un paso que se redondea al extremo y puede aparentar convergencia.
     if not a < a + width / 2 < b or a + width / 1024 == a or b - width / 1024 == b:
         raise CalculationError("El intervalo es demasiado estrecho respecto de sus límites para float.")
     return a, b, width
 
-# Pares positivos de la regla de Gauss-Legendre de 8 puntos en [-1,1].
+# Acá guardo los pares positivos de Gauss-Legendre de 8 puntos en [-1,1].
 GAUSS8 = ((0.1834346424956498, 0.3626837833783620),
           (0.5255324099163290, 0.3137066458778873),
           (0.7966664774136267, 0.2223810344533745),
           (0.9602898564975363, 0.1012285362903763))
 
 def _knots(count: int, shift: float) -> list[float]:
-    # La perturbación determinista evita depender de dos mallas uniformes anidadas.
+    # Muevo un poco los puntos para no depender de dos mallas uniformes anidadas.
     return [0.0] + [(i + 0.18 * math.sin(i * math.sqrt(2) + shift)) / count
                     for i in range(1, count)] + [1.0]
 
@@ -110,7 +110,7 @@ def calculate(function: Expression, a: float, b: float, settings: Settings | Non
         return value
 
     def panel(left: float, right: float, fl: float, fm: float, fr: float) -> float:
-        # Dividir antes de sumar reduce desbordamientos intermedios evitables.
+        # Divido antes de sumar para reducir desbordamientos que puedo evitar.
         return finite((right - left) * math.fsum((fl / 6, (2 / 3) * fm, fr / 6)))
 
     knots = _knots(32, 0.0)
@@ -153,15 +153,41 @@ def calculate(function: Expression, a: float, b: float, settings: Settings | Non
             errors.append(error)
         return finite(math.fsum(values)), finite(math.fsum(errors))
 
+    def gauss_panel(left: float, right: float) -> float:
+        center, half = (left + right) / 2, (right - left) / 2
+        contributions = []
+        for node, weight in GAUSS8:
+            contributions.append(half * weight * sample(center - half * node))
+            contributions.append(half * weight * sample(center + half * node))
+        return finite(math.fsum(contributions))
+
     def gauss_check(count: int) -> float:
         bounds = _knots(count, 1.23456789)
-        contributions = []
+        return finite(math.fsum(gauss_panel(left, right)
+                                for left, right in zip(bounds, bounds[1:])))
+
+    def gauss_adaptive(tolerance: float) -> tuple[float, float]:
+        # Refino donde cambia el control para no gastar miles de tramos lejos de √x o |x|.
+        def refine_gauss(left: float, right: float, whole: float, tol: float, depth: int):
+            mid = (left + right) / 2
+            first, second = gauss_panel(left, mid), gauss_panel(mid, right)
+            both = finite(math.fsum((first, second)))
+            error = abs(both - whole)
+            if error <= max(tol, settings.abs_tol * 1e-6):
+                return both, error
+            if depth >= settings.max_depth or mid == left or mid == right:
+                raise CalculationError("El control independiente no resolvió la precisión solicitada.")
+            v1, e1 = refine_gauss(left, mid, first, tol / 2, depth + 1)
+            v2, e2 = refine_gauss(mid, right, second, tol / 2, depth + 1)
+            return finite(math.fsum((v1, v2))), e1 + e2
+        values, errors = [], []
+        bounds = _knots(24, 1.23456789)
         for left, right in zip(bounds, bounds[1:]):
-            center, half = (left + right) / 2, (right - left) / 2
-            for node, weight in GAUSS8:
-                contributions.append(half * weight * sample(center - half * node))
-                contributions.append(half * weight * sample(center + half * node))
-        return finite(math.fsum(contributions))
+            value, error = refine_gauss(left, right, gauss_panel(left, right),
+                                       tolerance * (right - left), 0)
+            values.append(value)
+            errors.append(error)
+        return finite(math.fsum(values)), finite(math.fsum(errors))
 
     try:
         mean, error = integrate(target)
@@ -170,14 +196,12 @@ def calculate(function: Expression, a: float, b: float, settings: Settings | Non
             mean, error = integrate(final_target / 4)
             final_target = max(settings.abs_tol, settings.rel_tol * abs(mean))
         previous = gauss_check(24)
-        disagreement = math.inf
-        for count in (48, 96, 192, 384, 768, 1536, 3072):
-            checked = gauss_check(count)
-            disagreement = max(abs(checked - previous), abs(checked - mean))
-            if disagreement <= final_target:
-                break
-            previous = checked
-        else:
+        checked = gauss_check(48)
+        disagreement = max(abs(checked - previous), abs(checked - mean))
+        if disagreement > final_target:
+            checked, check_error = gauss_adaptive(final_target / 4)
+            disagreement = max(check_error, abs(checked - mean))
+        if disagreement > final_target:
             raise CalculationError("Los controles independientes no coinciden. No se afirma precisión suficiente.")
         estimate = finite(max(error, disagreement))
         if estimate > final_target:
@@ -192,7 +216,7 @@ def calculate(function: Expression, a: float, b: float, settings: Settings | Non
                   settings.abs_tol, settings.rel_tol)
 
 def simpson_composite(function: Callable[[float], float], a: float, b: float, n: int) -> float:
-    """Versión educativa del método original, con precondiciones explícitas."""
+    """Conservo el método original para comparar, pero reviso sus condiciones."""
     a, b, width = validate_interval(a, b)
     if type(n) is not int or n <= 0 or n % 2 or n > 1_000_000:
         raise CalculationError("Simpson compuesto requiere n entero positivo y par, hasta 1000000.")

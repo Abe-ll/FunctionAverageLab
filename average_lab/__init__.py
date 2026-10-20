@@ -1,2 +1,2 @@
-"""Function Average Lab: evolución asistida del prototipo de Rodrigo Polanco."""
-__version__ = "0.2.0"
+"""Acá reúno el cálculo del promedio, basado en la versión del Polanco."""
+__version__ = "0.3.0"

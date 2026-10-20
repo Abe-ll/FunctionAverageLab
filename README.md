@@ -1,10 +1,10 @@
-# Function Average Lab
+# Cálculo del promedio de una función matemática
 
 Proyecto final de Cálculo II, tema 7: valor promedio de una función.
 
-Evolución del prototipo de Rodrigo Polanco: intérprete AST y Simpson 1/3,
-ahora separados de la consola, con validación y control independiente.
-Ver [autoría](AUTHORS.md) y la documentación original DOCUMENTACION_TECNICA.md.
+Acá parto del prototipo del Polanco: conservo el intérprete AST y Simpson 1/3.
+Separo el motor, la consola y la ventana, y agrego validación y control independiente.
+La documentación original permanece en DOCUMENTACION_TECNICA.md.
 
 ## Ejecutar
 
@@ -27,7 +27,7 @@ Consola educativa y comprobaciones:
 
 ## Ejecutable para Windows
 
-El paquete portable contiene FunctionAverageLab.exe; se abre con doble clic y
+El paquete portable contiene CalculoPromedio.exe; se abre con doble clic y
 no requiere instalar Python. El modo consola se usa desde el código fuente.
 La compilación está preparada para Windows de 64 bits.
 
@@ -38,7 +38,7 @@ Para construirlo desde una terminal del proyecto en Windows:
     .venv\Scripts\python tools/build_windows.py
 
 El proceso ejecuta las pruebas, construye el EXE, prueba ese mismo archivo
-con su interfaz y crea dist/FunctionAverageLab-Windows.zip con su huella SHA-256.
+con su interfaz y crea dist/CalculoPromedio-Windows.zip con su huella SHA-256.
 GitHub Actions verifica los cambios de main y mejoras/* y conserva el paquete
 como artefacto durante 30 días. No se guardan entornos ni binarios en el historial.
 
