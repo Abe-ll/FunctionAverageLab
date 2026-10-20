@@ -25,6 +25,23 @@ Consola educativa y comprobaciones:
 
     python main.py --smoke-test
 
+## Ejecutable para Windows
+
+El paquete portable contiene FunctionAverageLab.exe; se abre con doble clic y
+no requiere instalar Python. El modo consola se usa desde el código fuente.
+La compilación está preparada para Windows de 64 bits.
+
+Para construirlo desde una terminal del proyecto en Windows:
+
+    python -m venv .venv
+    .venv\Scripts\python -m pip install -r requirements-build.txt
+    .venv\Scripts\python tools/build_windows.py
+
+El proceso ejecuta las pruebas, construye el EXE, prueba ese mismo archivo
+con su interfaz y crea dist/FunctionAverageLab-Windows.zip con su huella SHA-256.
+GitHub Actions verifica los cambios de main y mejoras/* y conserva el paquete
+como artefacto durante 30 días. No se guardan entornos ni binarios en el historial.
+
 ## Pruebas
 
     python -m unittest discover -s tests -v

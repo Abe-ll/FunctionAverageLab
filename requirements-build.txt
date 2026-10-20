@@ -1,0 +1,2 @@
+# Solo para construir el EXE; la aplicación funciona con la biblioteca estándar.
+pyinstaller==6.22.3
