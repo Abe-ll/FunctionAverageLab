@@ -20,6 +20,42 @@ que no son la malla de integración. Cancelar permite detener el cálculo.
 Si aparece un error, revisá el dominio, a<b y los paréntesis. No uses un
 resultado rechazado como respuesta válida.
 
+## Modo oscuro y entrada matemática
+
+El botón **Modo oscuro / Modo claro** cambia ventana, controles, texto y gráfica
+durante esta sesión, conservando el resultado y el historial.
+Al hacer clic en la función o un límite aparece un teclado plegable. También
+lo podés abrir y cerrar con ⌨; **Listo** o Escape lo ocultan.
+
+√ inserta sqrt(), π inserta pi, × y ÷ insertan * y /. Los botones x², xʸ y a⁄b
+ayudan con potencias y fracciones. Las funciones colocan el cursor dentro del
+paréntesis; si seleccionás algo, lo envuelven. Ejemplo: tocá √ y luego 9 para
+obtener sqrt(9). Para escribir una fracción, completá los dos paréntesis moviendo
+el cursor con las flechas. El teclado físico sigue disponible.
+Cuando se insertan dos factores consecutivos, el teclado matemático agrega *
+donde corresponde; la escritura física continúa usando * explícito.
+
+## Explorar y guardar la gráfica
+
+- Rueda del ratón: acercar o alejar alrededor del cursor.
+- Arrastrar: mover la vista. También funcionan las flechas con la gráfica enfocada.
+- Barras inferior y lateral: desplazamiento horizontal y vertical.
+- Deslizador lateral y botones +/−: controlar el zoom.
+- Cuadrícula y Ejes: mostrar u ocultar las referencias.
+- Ajustar o doble clic: recuperar la vista inicial.
+- Guardar gráfica PNG: generar una imagen de 1600×1000, con tema y vista actuales.
+
+Al ampliar, vuelvo a muestrear la porción visible dentro de [a,b], sin cambiar
+el resultado de integración. Fuera de ese intervalo no se prolonga la curva.
+Los rótulos aumentan sus dígitos cuando hace falta. La gráfica muestreada puede
+omitir oscilaciones o picos; no demuestra continuidad ni sustituye los controles
+del cálculo. El error numérico mostrado se refiere al promedio.
+
+La interacción toma como referencia la [vista gráfica de GeoGebra](https://geogebra.github.io/docs/manual/en/Graphics_View/)
+y su [teclado virtual](https://geogebra.github.io/docs/manual/en/View_Menu/).
+Esta implementación es local y no integra GeoGebra ni sus servicios.
+Para PNG se usa [Pillow ImageDraw](https://pillow.readthedocs.io/en/stable/reference/ImageDraw.html).
+
 ## Guion propuesto para un máximo de 20 minutos
 
 | Minutos | Contenido |
@@ -48,6 +84,9 @@ pendientes. Un EXE local o un push no demuestra envío a Canvas.
 | average_lab/expressions.py | Revisar y evaluar la expresión |
 | average_lab/numerics.py | Calcular y contrastar el promedio |
 | average_lab/gui.py | Mostrar datos, gráfica, ayuda e historial |
+| average_lab/plotting.py | Explorar la gráfica y generar PNG |
+| average_lab/keyboard.py | Insertar símbolos y plantillas matemáticas |
+| average_lab/themes.py | Paletas clara y oscura |
 | average_lab/examples.py | Ejemplos con respuesta analítica |
 | tests/ | Verificar resultados y comportamiento |
 | tools/build_windows.py | Construir y comprobar el EXE |

@@ -10,6 +10,9 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, ttk
 
+from .themes import THEMES
+from .plotting import GraphView
+from .keyboard import MathKeyboard
 from .examples import EXAMPLES
 from .expressions import Expression, ExpressionError, parse_bound
 from .numerics import CalculationError, CancelledError, Result, Settings, calculate
@@ -72,39 +75,92 @@ class AverageApp:
         self.integral_text = tk.StringVar(value="Integral: —")
         self.error_text = tk.StringVar(value="Error estimado: —")
         self.metrics = tk.StringVar(value="Promedio = integral / (b − a)")
+        self.theme_name = "light"
+        self.colors = THEMES[self.theme_name]
+        self.keyboard = MathKeyboard(root, self.colors)
         self._style()
         self._build()
+        self.apply_theme()
         for var in (self.expression, self.a, self.b, self.precision):
             var.trace_add("write", self._invalidate)
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._poll_id = root.after(40, self._poll)
 
     def _style(self):
+        c = self.colors
         style = ttk.Style(self.root)
-        style.theme_use("clam")
-        style.configure(".", font=("Segoe UI", 10), foreground=INK)
-        style.configure("TFrame", background=BG)
-        style.configure("Card.TFrame", background="white")
-        style.configure("TLabel", background=BG)
-        style.configure("Card.TLabel", background="white")
-        style.configure("Muted.TLabel", foreground=MUTED, background="white")
-        style.configure("Title.TLabel", font=("Segoe UI Semibold", 24), background=BG)
-        style.configure("Answer.TLabel", font=("Segoe UI Semibold", 30), foreground=TEAL, background="white")
-        style.configure("TButton", padding=(10, 5))
-        style.configure("Primary.TButton", background=TEAL, foreground="white")
-        style.map("Primary.TButton", background=[("active", "#096774"), ("disabled", "#7c969e")])
-        style.configure("TEntry", padding=7)
-        style.configure("TCombobox", padding=6)
-        style.configure("Treeview", rowheight=29)
+        if style.theme_use() != "clam":
+            style.theme_use("clam")
+        style.configure(".", font=("Segoe UI", 10), foreground=c["ink"], background=c["bg"],
+                        bordercolor=c["axis"], lightcolor=c["axis"], darkcolor=c["axis"],
+                        focuscolor=c["accent"])
+        for name in ("TFrame", "TLabel", "TNotebook"):
+            style.configure(name, background=c["bg"])
+        for name in ("Card.TFrame", "Card.TLabel", "Muted.TLabel"):
+            style.configure(name, background=c["card"])
+        style.configure("Muted.TLabel", foreground=c["muted"])
+        style.configure("Secondary.TLabel", foreground=c["muted"], background=c["bg"])
+        style.configure("Title.TLabel", font=("Segoe UI Semibold", 21), background=c["bg"])
+        style.configure("Answer.TLabel", font=("Segoe UI Semibold", 30), foreground=c["accent"], background=c["card"])
+        style.configure("TButton", padding=(10, 5), background=c["button"], foreground=c["ink"], bordercolor=c["axis"])
+        style.map("TButton", background=[("active", c["hover"])], foreground=[("disabled", c["disabled"])])
+        style.configure("Primary.TButton", background=c["primary"], foreground="white")
+        style.map("Primary.TButton", background=[("active", c["selected"]), ("disabled", c["button"])])
+        for name in ("TEntry", "TCombobox"):
+            style.configure(name, padding=7, fieldbackground=c["input"], background=c["button"],
+                            foreground=c["ink"], insertcolor=c["ink"], bordercolor=c["axis"],
+                            selectbackground=c["selected"], selectforeground="white", arrowcolor=c["ink"])
+            style.map(name, fieldbackground=[("readonly", c["input"]), ("disabled", c["bg"])],
+                      foreground=[("disabled", c["disabled"]), ("readonly", c["ink"])],
+                      selectbackground=[("!focus", c["input"])], selectforeground=[("!focus", c["ink"])])
+        style.configure("Treeview", rowheight=29, background=c["card"], fieldbackground=c["card"], foreground=c["ink"])
+        style.map("Treeview", background=[("selected", c["selected"])], foreground=[("selected", "white")])
+        style.configure("Treeview.Heading", background=c["button"], foreground=c["ink"])
+        style.configure("TNotebook.Tab", background=c["button"], foreground=c["muted"], padding=(6, 4))
+        style.map("TNotebook.Tab", background=[("selected", c["card"]), ("active", c["hover"])],
+                  foreground=[("selected", c["ink"])])
+        style.configure("TCheckbutton", background=c["card"], foreground=c["ink"])
+        style.map("TCheckbutton", background=[("active", c["card"])], indicatorbackground=[("selected", c["accent"]), ("!selected", c["input"])])
+        for orient in ("Horizontal", "Vertical"):
+            style.configure(orient + ".TScrollbar", background=c["button"], troughcolor=c["card"], arrowcolor=c["ink"])
+            style.configure(orient + ".TScale", background=c["button"], troughcolor=c["input"])
+        style.configure("Horizontal.TProgressbar", background=c["accent"], troughcolor=c["input"])
+        self.root.option_add("*TCombobox*Listbox.background", c["input"])
+        self.root.option_add("*TCombobox*Listbox.foreground", c["ink"])
+        self.root.option_add("*TCombobox*Listbox.selectBackground", c["selected"])
+        self.root.option_add("*TCombobox*Listbox.selectForeground", "white")
+
+    def apply_theme(self):
+        self.colors = THEMES[self.theme_name]
+        self.root.configure(bg=self.colors["bg"])
+        self._style()
+        def recolor(parent):
+            for widget in parent.winfo_children():
+                if isinstance(widget, tk.Text):
+                    widget.configure(bg=self.colors["card"], fg=self.colors["ink"],
+                                     insertbackground=self.colors["ink"], selectbackground=self.colors["selected"])
+                recolor(widget)
+        recolor(self.root)
+        self.graph.set_theme(self.colors)
+        self.keyboard.set_theme(self.colors)
+        self.theme_button.configure(text="☀ Modo claro" if self.theme_name == "dark" else "☾ Modo oscuro")
+
+    def toggle_theme(self):
+        self.theme_name = "dark" if self.theme_name == "light" else "light"
+        self.apply_theme()
 
     def _build(self):
         outer = ttk.Frame(self.root, padding=16)
         outer.pack(fill="both", expand=True)
         outer.columnconfigure(0, weight=1)
         outer.rowconfigure(2, weight=1)
-        ttk.Label(outer, text="Cálculo del promedio de una función matemática", style="Title.TLabel").grid(row=0, column=0, sticky="w")
+        header = ttk.Frame(outer)
+        header.grid(row=0, column=0, sticky="ew")
+        ttk.Label(header, text="Cálculo del promedio de una función matemática", style="Title.TLabel").pack(side="left")
+        self.theme_button = ttk.Button(header, text="☾ Modo oscuro", command=self.toggle_theme)
+        self.theme_button.pack(side="right", padx=(10, 0))
         ttk.Label(outer, text="Explora una función. Integra. Comprende su valor promedio.",
-                  foreground=MUTED).grid(row=1, column=0, sticky="w", pady=(2, 12))
+                  style="Secondary.TLabel").grid(row=1, column=0, sticky="w", pady=(2, 12))
         body = ttk.Frame(outer)
         body.grid(row=2, column=0, sticky="nsew")
         body.columnconfigure(1, weight=1)
@@ -120,8 +176,14 @@ class AverageApp:
                 row=row, column=0, sticky="w", pady=(8 if row else 0, 4))
             row += 1
         label("FUNCIÓN")
-        self.function_entry = ttk.Entry(left, textvariable=self.expression, font=("Consolas", 13))
-        self.function_entry.grid(row=row, column=0, sticky="ew")
+        formula_row = ttk.Frame(left, style="Card.TFrame")
+        formula_row.grid(row=row, column=0, sticky="ew")
+        formula_row.columnconfigure(0, weight=1)
+        self.function_entry = ttk.Entry(formula_row, textvariable=self.expression, font=("Consolas", 13), width=16)
+        self.function_entry.grid(row=0, column=0, sticky="ew")
+        self.keyboard_button = ttk.Button(formula_row, text="⌨", width=3,
+                                          command=self.toggle_keyboard, takefocus=False)
+        self.keyboard_button.grid(row=0, column=1, padx=(5, 0))
         row += 1
         ttk.Label(left, text="Ejemplo: cos(pi*x), sqrt(x), x^2\nUsa * para multiplicar y punto decimal.",
                   style="Muted.TLabel", wraplength=280).grid(row=row, column=0, sticky="w", pady=(6, 0))
@@ -183,12 +245,9 @@ class AverageApp:
         self.tabs.grid(row=1, column=0, sticky="nsew")
         plot_frame = ttk.Frame(self.tabs, style="Card.TFrame")
         self.tabs.add(plot_frame, text="  Gráfica  ")
-        self.canvas = tk.Canvas(plot_frame, bg="white", highlightthickness=0, height=180)
-        self.canvas.pack(fill="both", expand=True)
-        self.canvas.bind("<Configure>", lambda event: self.draw())
-        ttk.Label(plot_frame, text="Azul: f(x) · Naranja: promedio · Relleno: contribución con signo\n"
-                  "La gráfica usa muestras; no demuestra continuidad ni convergencia.",
-                  style="Muted.TLabel", padding=(12, 6), wraplength=650).pack(anchor="w")
+        self.graph = GraphView(plot_frame, self.colors)
+        self.graph.pack(fill="both", expand=True)
+        self.canvas = self.graph.canvas
         self.steps = tk.Text(self.tabs, wrap="word", bg="white", fg=INK, relief="flat",
                              padx=18, pady=15, font=("Segoe UI", 11), state="disabled", width=30)
         self.tabs.add(self.steps, text="  Procedimiento  ")
@@ -232,11 +291,15 @@ class AverageApp:
         self.json_button = ttk.Button(actions, text="Guardar resultado JSON", command=lambda: self.save("json"), state="disabled")
         self.csv_button = ttk.Button(actions, text="Guardar muestras CSV", command=lambda: self.save("csv"), state="disabled")
         self.json_button.pack(side="left", padx=(0, 8))
-        self.csv_button.pack(side="left")
-        ttk.Label(outer, textvariable=self.status, foreground=MUTED, wraplength=1080,
+        self.csv_button.pack(side="left", padx=(0, 8))
+        self.image_button = ttk.Button(actions, text="Guardar gráfica PNG", command=self.save_image, state="disabled")
+        self.image_button.pack(side="left")
+        ttk.Label(outer, textvariable=self.status, style="Secondary.TLabel", wraplength=1080,
                   justify="left").grid(row=3, column=0, sticky="ew", pady=(8, 0))
         self.inputs = (self.function_entry, self.a_entry, self.b_entry,
-                       self.precision_box, self.example_box, self.load_button)
+                       self.precision_box, self.example_box, self.load_button, self.keyboard_button)
+        for entry in (self.function_entry, self.a_entry, self.b_entry):
+            self.keyboard.attach(entry)
         self.root.bind("<Return>", lambda event: self.start() if not self.busy else None)
         self._set_steps("El promedio conserva el signo de la integral.\n\n"
                         "f_prom = (1 / (b − a)) · ∫[a,b] f(x) dx\n\n"
@@ -258,6 +321,7 @@ class AverageApp:
         self.metrics.set("Promedio = integral / (b − a)")
         self.json_button.configure(state="disabled")
         self.csv_button.configure(state="disabled")
+        self.image_button.configure(state="disabled")
         self.status.set("Entradas modificadas. Calcula para obtener un resultado actualizado.")
         self._set_steps("Se modificaron los datos. Vuelve a calcular para actualizar el procedimiento.")
         self.draw()
@@ -289,6 +353,7 @@ class AverageApp:
     def start(self):
         if self.busy:
             return
+        self.keyboard.hide()
         self._invalidate()
         try:
             function = Expression.parse(self.expression.get())
@@ -346,6 +411,7 @@ class AverageApp:
                          f"Tolerancias abs./rel.: {result.abs_tol:g} / {result.rel_tol:g}")
         self.json_button.configure(state="normal")
         self.csv_button.configure(state="normal")
+        self.image_button.configure(state="normal")
         self.status.set("Cálculo completado. El error es una estimación numérica; revisa el dominio de la función.")
         self._set_steps(
             f"1. DATOS\nf(x) = {result.expression}\na = {number(result.a)}; b = {number(result.b)}\n"
@@ -393,53 +459,27 @@ class AverageApp:
         self.tabs.select(0)
 
     def draw(self):
-        canvas = self.canvas
-        canvas.delete("all")
-        width, height = max(canvas.winfo_width(), 200), max(canvas.winfo_height(), 160)
-        if self.result is None:
-            canvas.create_text(width / 2, height / 2, text="La gráfica aparecerá al calcular",
-                               fill=MUTED, font=("Segoe UI", 12))
+        self.graph.set_result(self.result)
+
+    def toggle_keyboard(self):
+        if self.keyboard.visible:
+            self.keyboard.hide()
+        elif not self.busy:
+            self.keyboard.show(self.function_entry)
+
+    def save_image(self):
+        if self.result is None or self.busy:
             return
-        result = self.result
-        points = sample_curve(result)
-        valid = [y for _, y in points if y is not None] + [0.0, result.average]
-        # Normalizo primero para que ymax−ymin no desborde con valores finitos enormes.
-        scale = max(abs(y) for y in valid) or 1.0
-        low, high = min(y / scale for y in valid), max(y / scale for y in valid)
-        if low == high:
-            low, high = low - 0.5, high + 0.5
-        margin = (high - low) * 0.09
-        low, high = low - margin, high + margin
-        left, right, top, bottom = 72, width - 24, 25, height - 45
-        def px(x):
-            return left + (x - result.a) / (result.b - result.a) * (right - left)
-        def py(y):
-            return bottom - (y / scale - low) / (high - low) * (bottom - top)
-        for i in range(5):
-            y = top + i * (bottom - top) / 4
-            value = (high - i * (high - low) / 4) * scale
-            canvas.create_line(left, y, right, y, fill="#e7edf3")
-            canvas.create_text(left - 8, y, text=f"{value:.3g}", anchor="e", fill=MUTED,
-                               font=("Segoe UI", 9))
-        zero = py(0)
-        for (x1, y1), (x2, y2) in zip(points, points[1:]):
-            if y1 is None or y2 is None:
-                continue
-            color = "#d8eef3" if (y1 / 2 + y2 / 2) >= 0 else "#ffe7d5"
-            canvas.create_polygon(px(x1), zero, px(x1), py(y1), px(x2), py(y2), px(x2), zero,
-                                  fill=color, outline="")
-            canvas.create_line(px(x1), py(y1), px(x2), py(y2), fill="#12678d", width=2, tags="curve")
-        canvas.create_line(left, zero, right, zero, fill="#a9bac8")
-        canvas.create_line(left, py(result.average), right, py(result.average),
-                           fill="#cf6418", width=2, dash=(7, 4), tags="average")
-        canvas.create_text(right, py(result.average) - 11, anchor="e",
-                           text="promedio = " + number(result.average), fill="#a34b0e",
-                           font=("Segoe UI Semibold", 10))
-        for i in range(5):
-            x = result.a + (result.b - result.a) * i / 4
-            canvas.create_text(px(x), bottom + 18, text=f"{x:.4g}", fill=MUTED,
-                               font=("Segoe UI", 9))
-        canvas.create_text(right, bottom + 34, text="x", fill=MUTED)
+        self.keyboard.hide()
+        path = filedialog.asksaveasfilename(parent=self.root, defaultextension=".png",
+            initialfile="grafica-promedio.png", filetypes=[("Imagen PNG", "*.png")])
+        if not path:
+            return
+        try:
+            self.graph.save_png(path)
+            self.status.set("Gráfica guardada con el tema y la vista actuales: " + path)
+        except (OSError, ValueError, ImportError) as exc:
+            self.status.set("No se pudo guardar la imagen: " + str(exc))
 
     def save(self, kind):
         if self.result is None or self.busy:
@@ -456,6 +496,8 @@ class AverageApp:
 
     def close(self):
         self.closed = True
+        self.root.update_idletasks()
+        self.keyboard.close()
         self.cancel_event.set()
         self.root.after_cancel(self._poll_id)
         self.root.destroy()
@@ -478,7 +520,16 @@ def smoke_test() -> dict:
         assert app.canvas.find_withtag("average")
         assert app.canvas.find_withtag("curve")
         assert abs(result.average - 3) < 1e-8
+        app.toggle_theme()
+        app.graph.zoom(0.8)
+        app.keyboard.show(app.function_entry)
+        import tempfile
+        with tempfile.TemporaryDirectory() as temp:
+            image_path = Path(temp) / "grafica.png"
+            app.graph.save_png(image_path)
+            assert image_path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
         return {"ok": True, "interface": "Tk", "average": result.average,
-                "graph_items": len(app.canvas.find_all())}
+                "graph_items": len(app.canvas.find_all()), "theme": app.theme_name,
+                "png_export": True, "keyboard_buttons": len(app.keyboard.buttons)}
     finally:
         app.close()

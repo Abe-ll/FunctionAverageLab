@@ -8,14 +8,27 @@ La documentación original permanece en DOCUMENTACION_TECNICA.md.
 
 ## Ejecutar
 
-Python 3.12 o posterior, sin paquetes externos para el cálculo:
+Python 3.12 o posterior. El cálculo usa la biblioteca estándar;
+Pillow permite guardar imágenes PNG:
 
+    python -m pip install -r requirements.txt
     python main.py
 
 Se abre una ventana con función editable, límites, tres niveles de precisión,
 ocho ejemplos, gráfica, procedimiento e historial de la sesión.
-Los resultados se pueden exportar como JSON y las muestras como CSV.
+Los resultados se pueden exportar como JSON, las muestras como CSV y la gráfica como PNG.
 El cálculo se puede cancelar; al modificar los datos se invalida el resultado anterior.
+
+El botón de arriba alterna modo claro y oscuro. La gráfica admite rueda para
+zoom sobre el cursor, arrastre, barras de desplazamiento, deslizador de zoom,
+cuadrícula y ejes conmutables y **Ajustar** para volver a la vista inicial.
+El PNG guarda la vista y el tema actuales, con función, intervalo, promedio
+y error estimado. Se genera a partir de los datos, sin capturar el escritorio.
+
+Al tocar la función o un límite se despliega el teclado matemático. El botón
+⌨ lo abre o cierra; **Listo** y Escape lo ocultan. Los botones √, x², xʸ,
+fracción, π y funciones insertan sintaxis válida en el cursor. Seleccioná una
+expresión para envolverla en una función. Se puede seguir usando el teclado físico.
 
 Consola educativa y comprobaciones:
 
@@ -38,7 +51,8 @@ Para construirlo desde una terminal del proyecto en Windows:
     .venv\Scripts\python tools/build_windows.py
 
 El proceso ejecuta las pruebas, construye el EXE, prueba ese mismo archivo
-con su interfaz y crea dist/CalculoPromedio-Windows.zip con su huella SHA-256.
+con su interfaz, modo oscuro, teclado y exportación PNG, y crea
+dist/CalculoPromedio-Windows.zip con su huella SHA-256.
 GitHub Actions verifica los cambios de main y mejoras/* y conserva el paquete
 como artefacto durante 30 días. No se guardan entornos ni binarios en el historial.
 
