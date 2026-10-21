@@ -1,0 +1,2 @@
+# Uso Pillow para guardar la gráfica en PNG sin capturar la pantalla.
+Pillow==13.0.0
