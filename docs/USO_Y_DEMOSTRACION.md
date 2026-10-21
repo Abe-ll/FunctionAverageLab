@@ -1,5 +1,10 @@
 # Usar y explicar el programa
 
+La versión estable 1.0.0 se descarga desde
+[Releases](https://github.com/Abe-ll/FunctionAverageLab/releases/latest).
+En Windows de 64 bits no hace falta instalar Python. Si descargás el paquete ZIP,
+extraelo antes de abrir el programa.
+
 Abrí CalculoPromedio.exe o ejecutá python main.py desde el proyecto.
 No hace falta internet para calcular. Los ejemplos son ayudas de estudio,
 no una lista cerrada de funciones.

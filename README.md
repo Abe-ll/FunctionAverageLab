@@ -2,6 +2,26 @@
 
 Proyecto final de Cálculo II, tema 7: valor promedio de una función.
 
+## Descargar y usar
+
+**Versión estable 1.0.0 · Windows de 64 bits · Sin instalar Python**
+
+- [Descargar el programa (.exe)](https://github.com/Abe-ll/FunctionAverageLab/releases/latest/download/CalculoPromedio.exe)
+- [Descargar el paquete con guía de uso (.zip)](https://github.com/Abe-ll/FunctionAverageLab/releases/latest/download/CalculoPromedio-Windows.zip)
+- [Ver versiones y novedades](https://github.com/Abe-ll/FunctionAverageLab/releases)
+
+Descargá CalculoPromedio.exe y abrilo con doble clic. Si elegís el ZIP,
+extraelo primero y abrí el ejecutable de adentro. No necesita conexión
+a internet para calcular. F11 abre la gráfica en pantalla completa;
+Escape vuelve a la ventana. La guía del paquete explica los controles.
+
+El ejecutable publicado es para Windows de 64 bits. En otros sistemas se puede
+usar el código fuente con Python y Tkinter; no se incluyen ejecutables para ellos.
+Las nuevas versiones se publicarán por separado, conservando las anteriores.
+[Cambios de esta versión](CHANGELOG.md).
+
+## Sobre el proyecto
+
 Acá parto del prototipo del Polanco: conservo el intérprete AST y Simpson 1/3.
 Separo el motor, la consola y la ventana, y agrego validación y control independiente.
 La documentación original permanece en DOCUMENTACION_TECNICA.md.
@@ -67,7 +87,8 @@ El proceso ejecuta las pruebas, construye el EXE, prueba ese mismo archivo
 con su interfaz, modo oscuro, teclado y exportación PNG, y crea
 dist/CalculoPromedio-Windows.zip con su huella SHA-256.
 GitHub Actions verifica los cambios de main y mejoras/* y conserva el paquete
-como artefacto durante 30 días. No se guardan entornos ni binarios en el historial.
+como artefacto durante 30 días. Las descargas públicas están en **Releases**;
+no dependen de ese artefacto temporal. No se guardan entornos ni binarios en el historial.
 
 ## Pruebas
 

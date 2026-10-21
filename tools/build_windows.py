@@ -32,7 +32,8 @@ def build():
         hashlib.sha256(exe.read_bytes()).hexdigest() + "  " + exe.name + "\n", encoding="ascii")
     archive = ROOT / "dist" / "CalculoPromedio-Windows.zip"
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as output:
-        for path in (exe, report, ROOT / "dist" / "SHA256SUMS.txt", ROOT / "README.md"):
+        for path in (exe, report, ROOT / "dist" / "SHA256SUMS.txt", ROOT / "README.md",
+                     ROOT / "CHANGELOG.md"):
             output.write(path, path.name)
         for path in sorted((ROOT / "docs").glob("*.md")):
             output.write(path, "docs/" + path.name)
